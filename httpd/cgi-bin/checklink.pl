@@ -1,11 +1,11 @@
-#!/usr/bin/perl -w
+#! /usr/bin/perl -w
 #
 # W3C Link Checker
 # by Hugo Haas <hugo@w3.org>
 # (c) 1999-2002 World Wide Web Consortium
 # based on Renaud Bruyeron's checklink.pl
 #
-# $Id: checklink.pl,v 2.93 2002-08-22 01:03:43 link Exp $
+# $Id: checklink.pl,v 2.90.2.1 2002-10-23 04:32:50 hugo Exp $
 #
 # This program is licensed under the W3C(r) License:
 #	http://www.w3.org/Consortium/Legal/copyright-software
@@ -38,7 +38,7 @@ $| = 1;
 
 # Version info
 my $PROGRAM = 'W3C checklink';
-my $VERSION = q$Revision: 2.93 $ . '(c) 1999-2002 W3C';
+my $VERSION = q$Revision: 2.90.2.1 $ . '(c) 1999-2002 W3C';
 my $REVISION; ($REVISION = $VERSION) =~ s/Revision: (\d+\.\d+) .*/$1/;
 
 # Different options specified by the user
@@ -84,12 +84,12 @@ my $timestamp = &get_timestamp;
 if ($#ARGV >= 0 && !(@ARGV == 1 && $ARGV[0] eq 'DEBUG')) {
     $_cl = 1;
 # Parse command line
-    &parse_arguments();
+    my @uris = &parse_arguments();
     if ($_user && (! $_password)) {
         &ask_password();
     }
     my $uri;
-    foreach $uri (@ARGV) {
+    foreach $uri (@uris) {
 	if (!$_summary) {
             printf("%s %s\n", $PROGRAM ,$VERSION) if (! $_html);
         } else {
@@ -126,7 +126,7 @@ if ($#ARGV >= 0 && !(@ARGV == 1 && $ARGV[0] eq 'DEBUG')) {
         }
     }
 
-    use CGI ();
+    use CGI;
     use CGI::Carp qw(fatalsToBrowser);
     $query = new CGI;
     # Set a few parameters in CGI mode
@@ -185,44 +185,95 @@ if ($#ARGV >= 0 && !(@ARGV == 1 && $ARGV[0] eq 'DEBUG')) {
 ################################
 
 sub parse_arguments() {
-
-    use Getopt::Long 2.17 qw(GetOptions);
-    Getopt::Long::Configure('no_ignore_case');
-    my @masq = ();
-
-    GetOptions('help'            => \&usage,
-               'q|quiet'         => sub { $_quiet = 1; $_summary = 1; },
-               's|summary'       => \$_summary,
-               'b|broken'        => sub { $_redirects = 0; },
-               'e|dir-redirects' => sub { $_dir_redirects = 0; },
-               'v|verbose'       => \$_verbose,
-               'i|indicator'     => \$_progress,
-               'h|html'          => \$_html,
-               'n|noacclanguage' => sub { $_accept_language = 0; },
-               'r|recursive'     => sub { $_depth = -1 if $_depth == 0; },
-               'l|location=s'    => \$_base_location,
-               'u|user=s'        => \$_user,
-               'p|password=s'    => \$_password,
-               't|timeout=i'     => \$_timeout,
-               'L|languages=s'   => \$_languages,
-               'D|depth=i'       => sub { $_depth = $_[1] unless $_[1] == 0; },
-               'd|domain=s'      => \$_trusted,
-               'y|proxy=s'       => \$_http_proxy,
-               'masquerade'      => \@masq,
-               'hide-same-realm' => \$_hide_same_realm,
-               'V|version'       => \&version,
-              );
-
-    if (@masq) {
-        $_masquerade = 1;
-        $_local_dir = shift(@masq);
-        $_remote_masqueraded_uri = shift(@masq);
+    my @uris;
+    my $uris = 0;
+    while (@ARGV) {
+        $_ = shift(@ARGV);
+        if ($uris) {
+            push(@uris, $_);
+        } elsif (m/^--$/) {
+            $uris = 1;
+        } elsif (m/^-[^-DupytdlL]/) {
+            if (m/q/) {
+                $_quiet = 1;
+                $_summary = 1;
+            }
+            if (m/s/) {
+                $_summary = 1;
+            }
+            if (m/b/) {
+                $_redirects = 0;
+            }
+            if (m/e/) {
+                $_dir_redirects = 0;
+            }
+            if (m/v/) {
+                $_verbose = 1;
+            }
+            if (m/i/) {
+                $_progress = 1;
+            }
+            if (m/h/) {
+                $_html = 1;
+            }
+            if (m/n/) {
+                $_accept_language = 0;
+            }
+            if (m/r/) {
+                if ($_depth == 0) {
+                    $_depth = -1;
+                }
+            }
+        } elsif (m/^--help$/) {
+            &usage();
+        } elsif (m/^--quiet$/) {
+            $_quiet = 1;
+        } elsif (m/^--summary$/) {
+            $_summary = 1;
+        } elsif (m/^--broken$/) {
+            $_redirects = 0;
+        } elsif (m/^--dir-redirects$/) {
+            $_dir_redirects = 0;
+        } elsif (m/^--verbose$/) {
+            $_verbose = 1;
+        } elsif (m/^--indicator$/) {
+            $_progress = 1;
+        } elsif (m/^--html$/) {
+            $_html = 1;
+        } elsif (m/^--noacclanguage$/) {
+            $_accept_language = 0;
+        } elsif (m/^--recursive$/) {
+            if ($_depth == 0) {
+                $_depth = -1;
+            }
+        } elsif (m/^-l|--location$/) {
+            $_base_location = shift(@ARGV);
+        } elsif (m/^-u|--user$/) {
+            $_user = shift(@ARGV);
+        } elsif (m/^-p|--password$/) {
+            $_password = shift(@ARGV);
+        } elsif (m/^-t|--timeout$/) {
+            $_timeout = shift(@ARGV);
+        } elsif (m/^-L|--languages$/) {
+            $_languages = shift(@ARGV);
+        } elsif (m/^-D|--depth$/) {
+            my $value = shift(@ARGV);
+            $_depth = $value unless($value == 0);
+        } elsif (m/^-d|--domain$/) {
+            $_trusted = shift(@ARGV);
+        } elsif (m/^-y|--proxy$/) {
+            $_http_proxy = shift(@ARGV);
+        } elsif (m/^--masquerade$/) {
+            $_masquerade = 1;
+            $_local_dir = shift(@ARGV);
+            $_remote_masqueraded_uri = shift(@ARGV);
+        } elsif (m/^--hide-same-realm$/) {
+            $_hide_same_realm = 1;
+        } else {
+            push(@uris, $_);
+        }
     }
-}
-
-sub version() {
-    print STDERR "$PROGRAM $VERSION\n";
-    exit(0);
+    return(@uris);
 }
 
 sub usage() {
@@ -243,13 +294,13 @@ Options:
 				for example, it would be:
 				http://www.w3.org/TR/html4/
 	-n/--noacclanguage	Do not send an Accept-Language header.
-	-L/--languages		Languages accepted (default: '$_languages').
+	-L/--languages		Languages accepted (default: '$_languages'). 
 	-q/--quiet		No output if no errors are found.
 	-v/--verbose		Verbose mode.
 	-i/--indicator		Show progress while parsing.
 	-u/--user username	Specify a username for authentication.
 	-p/--password password	Specify a password.
-	--hide-same-realm	Hide 401's that are in the same realm as the
+	--hide-same-real	Hide 401's that are in the same realm as the
 				document checked.
 	-t/--timeout value	Timeout for the HTTP requests.
 	-d/--domain domain	Regular expression describing the domain to
@@ -261,7 +312,6 @@ Options:
 	-y/--proxy proxy	Specify an HTTP proxy server.
 	-h/--html		HTML output.
 	--help			Show this message.
-	-V/--version		Output version information.
 
 Documentation at: http://www.w3.org/2000/07/checklink
 Please send bug reports and comments to the www-validator mailing list:
@@ -273,7 +323,7 @@ Please send bug reports and comments to the www-validator mailing list:
 
 sub ask_password() {
     print(STDERR 'Enter the password for user '.$_user.': ');
-    # Will only work on Unix... Term::ReadKey from CPAN would be better.
+    # Will only work on Unix...
     system('stty -echo');
     chomp($_password = <STDIN>);
     system('stty echo');
@@ -287,7 +337,7 @@ sub ask_password() {
 ###########################################
 
 sub urize() {
-    use URI ();
+    use URI;
     $_ = URI::Escape::uri_unescape($_[0]);
     my $base;
     my $res = $_;
@@ -347,11 +397,11 @@ sub check_uri() {
     if ($_html) {
         print("</h2>\n");
         if (! $_summary) {
-            use URI::Escape ();
+            use URI;
             printf("<p>Go to <a href='#%s'>the results</a>.</p>\n",
                    $result_anchor);
             printf("<p>Check also:
-<a href=\"check?uri=%s\">HTML Validity</a> &amp;
+<a href=\"http://validator.w3.org/check?uri=%s\">HTML Validity</a> &amp;
 <a href=\"http://jigsaw.w3.org/css-validator/validator?uri=%s\">CSS
 Validity</a></p>
 <p>Back to the <a href=\"checklink\">link checker</a>.</p>\n",
@@ -365,7 +415,7 @@ Validity</a></p>
     $processed{$absolute_uri} = 1;
     # Parse the document
     my $p = &parse_document($uri, $absolute_uri,
-                            $response->content(), 1,
+                            $response->content(), 1, 
 			    $depth != 0);
     my $base = URI->new($p->{base});
 
@@ -661,7 +711,7 @@ sub W3C::UserAgent::simple_request() {
 
 sub W3C::UserAgent::redirect_ok {
     my ($self, $request) = @_;
-
+    
     if (! ($_summary || (!$doc_count && $_html))) {
         &hprintf("\n%s %s ", $request->method(), $request->uri());
     }
@@ -747,7 +797,7 @@ sub get_uri() {
             print "\n";
         }
         return &get_uri($method, $response->request->url,
-                        $start, $ua->{Redirects},
+                        $start, $ua->{Redirects}, 
                         $code, $realm, $message, 1);
     }
     # Record the redirects
@@ -1049,6 +1099,7 @@ sub W3C::CheckLink::declaration() {
 ################################
 
 sub check_validity() {
+    use HTTP::Status;
     my ($testing, $uri, $links, $redirects) = @_;
     # $testing is the URI of the document checked
     # $uri is the URI of the target that we are verifying
@@ -1134,10 +1185,10 @@ sub check_validity() {
 }
 
 sub escape_match($, \%) {
-    use URI::Escape ();
-    my ($a, $hash) = (URI::Escape::uri_unescape($_[0]), $_[1]);
+    use URI::Escape;
+    my ($a, $hash) = (uri_unescape($_[0]), $_[1]);
     foreach $b (keys %$hash) {
-        if ($a eq URI::Escape::uri_unescape($b)) {
+        if ($a eq uri_unescape($b)) {
             return(1);
         }
     }
@@ -1152,15 +1203,15 @@ sub authentication() {
     my $r = $_[0];
     $r->headers->www_authenticate =~ /Basic realm=\"([^\"]+)\"/;
     my $realm = $1;
-    my $authHeader = $r->headers->www_authenticate;
+    my $authHeader = $r->headers->www_authenticate;                                 
     if ($_cl) {
         printf(STDERR "\nAuthentication is required for %s.\n", $r->request->url);
         printf(STDERR "The realm is %s.\n", $realm);
         print(STDERR "Use the -u and -p options to specify a username and password.\n");
     } else {
-        printf("Status: 401 Authorization Required\nWWW-Authenticate: %s\nConnection: close\nContent-Language: en\nContent-Type: text/html\n\n", $r->headers->www_authenticate);
+        printf("Status: 401 Authorization Required\nWWW-Authenticate: %s\nConnection: close\nContent-Type: text/html\n\n", $r->headers->www_authenticate);
         printf("<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
-<html lang=\"en\">
+<html>
 <head>
 <title>401 Authorization Required</title>
 </head>
@@ -1169,7 +1220,7 @@ sub authentication() {
 <p>You need %s access to %s to perform Link Checking.</p>
 </body>
 </html>
-", $realm, $r->request->url);
+", &encode($realm), $r->request->url);
     }
 }
 
@@ -1178,7 +1229,7 @@ sub authentication() {
 ##################
 
 sub get_timestamp() {
-    use Time::HiRes ();
+    use Time::HiRes;
     return pack('LL', Time::HiRes::gettimeofday());
 }
 
@@ -1330,7 +1381,7 @@ sub show_link_report {
                     $whattodo =
 'You must change this link: people using a browser without Javascript support
 will <em>not</em> be able to follow this link. See the
-<a href="http://www.w3.org/TR/1999/WAI-WEBCONTENT-19990505/#tech-scripts">Web
+<a href="http://www.w3.org/TR/1999/WAI-WEBCONTENT-19990505/#tech-scripts">Web 
 Content Accessibility Guidelines on the use of scripting on the Web</a> and
 the
 <a href="http://www.w3.org/TR/WCAG10-HTML-TECHS/#directly-accessible-scripts">techniques
@@ -1380,7 +1431,7 @@ on how to solve this</a>.';
             }
             printf("
 <dt%s>%s</dt>
-<dd>What to do: <strong%s>%s</strong>%s<br></dd>
+<dd>What to do: <strong%s>%s</strong>%s<br>
 <dd>HTTP Code returned: %d%s<br>
 HTTP Message: %s%s%s</dd>
 <dd>Lines: %s</dd>\n",
@@ -1410,7 +1461,7 @@ HTTP Message: %s%s%s</dd>
                    # HTTP original message
                    defined($results->{$u}{location}{orig_message})
                    ? &encode($results->{$u}{location}{orig_message}).
-                   ' <span title="redirected to">-&gt;</span> '
+                   ' <span title="redirected to">-&gt;</span> ' 
                    : '',
                    # HTTP final message
                    $http_message,
@@ -1475,7 +1526,7 @@ HTTP Message: %s%s%s</dd>
             }
         }
     }
-    # End of the table
+    # End of the table 
     if ($_html) {
        print("</dl>\n");
     }
@@ -1592,7 +1643,7 @@ sub links_summary {
             print('</h3><p><i>Fragments listed are broken. See the table below to know what action to take.</i></p>');
 
             # Print a summary
-            print "<table border=\"1\">\n<tr><td><b>Code</b></td><td><b>Occurrences</b></td><td><b>What to do</b></td></tr>\n";
+            print "<table border=\"1\">\n<tr><td><b>Code</b></td><td><b>Occurences</b></td><td><b>What to do</b></td></tr>\n";
             my $code;
             foreach $code (sort(keys(%code_summary))) {
                 printf('<tr%s>', &bgcolor($code));
@@ -1634,7 +1685,7 @@ sub global_stats() {
     my $stop = &get_timestamp();
     return sprintf("Checked %d document(s) in %ss.",
                    ($doc_count<=$_max_documents? $doc_count : $_max_documents),
-                   &time_diff($timestamp, $stop));
+                   &time_diff($timestamp, $stop)); 
 }
 
 ##################
@@ -1654,7 +1705,7 @@ sub html_header() {
     print "
 
 <!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
-<html lang=\"en\">
+<html>
 <head>
 <title>W3C".$title."</title>
 <style type=\"text/css\">
@@ -1665,8 +1716,8 @@ body {
   background: white;
 }
 
-pre, code, tt {
-  font-family: monospace;
+pre {
+  font-family: monospace
 }
 
 img {
@@ -1701,7 +1752,7 @@ dt.report {
 </style>
 </head>
 <body>
-<p><a href=\"http://www.w3.org/\" title=\"W3C\"><img alt=\"W3C\" src=\"http://www.w3.org/Icons/w3c_home\" height=\"48\" width=\"72\"></a></p>
+<a href=\"http://www.w3.org/\"><img alt=\"W3C\" src=\"http://www.w3.org/Icons/w3c_home\" height=\"48\" width=\"72\"></a>
 <h1>W3C<sup>&reg;</sup>".$title."</h1>
 \n";
 }
@@ -1754,8 +1805,9 @@ Check out the
 <a href=\"http://www.w3.org/2000/07/checklink\">documentation</a>.
 Download the
 <a href=\"http://dev.w3.org/cvsweb/~checkout~/validator/httpd/cgi-bin/checklink.pl?rev=".$REVISION."&amp;content-type=text/plain\">source
-code</a> from
-<a href=\"http://dev.w3.org/cvsweb/validator/httpd/cgi-bin/checklink.pl\">CVS</a>.
+code</a> from the
+<a href=\"http://dev.w3.org/cvsweb/validator/httpd/cgi-bin/checklink.pl\">CVS
+log</a>.
 </address>
 </body>
 </html>
@@ -1776,22 +1828,22 @@ sub print_form() {
     my ($q) = @_;
     &html_header('', 1);
     print "<form action=\"".$q->self_url()."\" method=\"get\">
-<p><label for=\"uri\">Enter the address (<a href='http://www.w3.org/Addressing/#terms'>URL</a>)
-of a document that you would like to check:</label></p>
-<p><input type=\"text\" size=\"50\" id=\"uri\" name=\"uri\"></p>
+<p>Enter the address (<a href='http://www.w3.org/Addressing/#terms'>URL</a>)
+of a document that you would like to check:</p>
+<p><input type=\"text\" size=\"50\" name=\"uri\"></p>
 <p>Options:</p>
 <p>
-  <label><input type=\"checkbox\" name=\"summary\"> Summary only</label>
+  <input type=\"checkbox\" name=\"summary\"> Summary only
   <br>
-  <label><input type=\"checkbox\" name=\"hide_redirects\"> Hide redirects</label>
+  <input type=\"checkbox\" name=\"hide_redirects\"> Hide redirects
   <br>
-  <label><input type=\"checkbox\" name=\"no_accept_language\"> Don't send <tt>Accept-Language</tt> headers</label>
+  <input type=\"checkbox\" name=\"no_accept_language\"> Don't send <tt>Accept-Language</tt> headers.
   <br>
-  <label><input type=\"checkbox\" name=\"hide_dir_redirects\"> Hide directory redirects</label>
+  <input type=\"checkbox\" name=\"hide_dir_redirects\"> Hide directory redirects
   <br>
-  <label><input type=\"checkbox\" name=\"recursive\"> Check linked documents recursively <small>(maximum: $_max_documents documents; sleeping $_sleep_time seconds between each document)</small></label>
+  <input type=\"checkbox\" name=\"recursive\"> Check linked documents recursively <small>(maximum: $_max_documents documents; sleeping $_sleep_time seconds between each document)</small>
   <br>
-  <label>Depth of the recursion: <input type=\"text\" size=\"3\" name=\"depth\"><small>(-1 is the default and means unlimited)</small></label>
+  Depth of the recursion: <input type=\"text\" size=\"3\" name=\"depth\"><small>(-1 is the default and means unlimited)</small>
 </p>
 <p><input type=\"submit\" name=\"submit\" value=\"Check\"></p>
 </form>
