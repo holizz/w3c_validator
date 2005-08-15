@@ -9,7 +9,7 @@
 # This source code is available under the license at:
 #     http://www.w3.org/Consortium/Legal/copyright-software
 #
-# $Id: check,v 1.436 2005-08-15 22:23:57 bjoern Exp $
+# $Id: check,v 1.432.2.1 2005-08-15 22:47:51 link Exp $
 
 #
 # Disable buffering on STDOUT!
@@ -202,7 +202,7 @@ Directory not readable (permission denied): @_r
 
   #
   # Strings
-  $VERSION =  q$Revision: 1.436 $;
+  $VERSION =  q$Revision: 1.432.2.1 $;
   $VERSION =~ s/Revision: ([\d\.]+) /$1/;
 
   #
